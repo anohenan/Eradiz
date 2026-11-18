@@ -1,0 +1,222 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Filet de sécurité global : refus par défaut sur tout chemin non explicitement autorisé
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Fonctions utilitaires durcies
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation stricte du schéma UserProfile lors de la création
+    function isValidUserProfileCreate(data) {
+      return data.keys().hasAll(['email', 'displayName', 'credits', 'createdAt'])
+        && data.keys().hasOnly(['email', 'displayName', 'credits', 'activePlan', 'createdAt', 'updatedAt'])
+        && data.email is string
+        && data.email.size() <= 320
+        && (request.auth.token.email == null || data.email == request.auth.token.email)
+        && data.displayName is string
+        && data.displayName.size() <= 120
+        && data.credits is int
+        && data.credits == 5
+        && (!('activePlan' in data) || (data.activePlan is string && data.activePlan.size() <= 64))
+        && data.createdAt == request.time
+        && (!('updatedAt' in data) || data.updatedAt == request.time);
+    }
+
+    // Validation stricte du schéma UserProfile lors d'une mise à jour
+    function isValidUserProfileUpdate(data) {
+      return data.keys().hasAll(['email', 'displayName', 'credits', 'createdAt'])
+        && data.keys().hasOnly(['email', 'displayName', 'credits', 'activePlan', 'createdAt', 'updatedAt'])
+        && data.email is string
+        && data.email.size() <= 320
+        && data.displayName is string
+        && data.displayName.size() <= 120
+        && data.credits is int
+        && data.credits >= 0
+        && (!('activePlan' in data) || (data.activePlan is string && data.activePlan.size() <= 64))
+        && (!('updatedAt' in data) || data.updatedAt == request.time);
+    }
+
+    // Actions autorisées sur le profil utilisateur
+    function isDecrementCreditAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['credits', 'updatedAt'])
+        && existing().credits >= 1
+        && incoming().credits == existing().credits - 1;
+    }
+
+    function isTopUpCreditsAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['credits', 'activePlan', 'updatedAt'])
+        && incoming().credits >= existing().credits
+        && incoming().credits <= existing().credits + 600;
+    }
+
+    function isProfileInfoUpdateAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']);
+    }
+
+    function isValidUsageLogCreate(data, userId) {
+      return data.keys().hasAll(['userId', 'actionType', 'title', 'details', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'actionType', 'title', 'details', 'createdAt'])
+        && data.userId is string
+        && data.userId == userId
+        && data.userId.size() <= 128
+        && data.actionType is string
+        && data.actionType in ['ai_studio_kit', 'video_export', 'image_export', 'calculator_session']
+        && data.title is string
+        && data.title.size() > 0
+        && data.title.size() <= 120
+        && data.details is string
+        && data.details.size() <= 200
+        && data.createdAt == request.time;
+    }
+
+    function isValidUserCreationCreate(data, userId) {
+      return data.keys().hasAll([
+          'userId',
+          'shortPosterTitle',
+          'detectedCategory',
+          'seoTitle',
+          'socialShortDesc',
+          'price',
+          'promoBadge',
+          'tone',
+          'themeColor',
+          'isCutout',
+          'productImageSrc',
+          'thumbFlashSale',
+          'thumbMinimalStudio',
+          'thumbStoryWhatsapp',
+          'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'userId',
+          'shortPosterTitle',
+          'detectedCategory',
+          'seoTitle',
+          'socialShortDesc',
+          'price',
+          'promoBadge',
+          'tone',
+          'themeColor',
+          'isCutout',
+          'productImageSrc',
+          'thumbFlashSale',
+          'thumbMinimalStudio',
+          'thumbStoryWhatsapp',
+          'createdAt'
+        ])
+        && data.userId is string
+        && data.userId == userId
+        && data.userId.size() <= 128
+        && data.shortPosterTitle is string
+        && data.shortPosterTitle.size() > 0
+        && data.shortPosterTitle.size() <= 120
+        && data.detectedCategory is string
+        && data.detectedCategory.size() <= 100
+        && data.seoTitle is string
+        && data.seoTitle.size() <= 200
+        && data.socialShortDesc is string
+        && data.socialShortDesc.size() <= 600
+        && data.price is string
+        && data.price.size() <= 40
+        && data.promoBadge is string
+        && data.promoBadge.size() <= 60
+        && data.tone is string
+        && data.tone.size() <= 60
+        && data.themeColor is string
+        && data.themeColor.size() <= 16
+        && data.themeColor.matches('^#[0-9a-fA-F]{3,8}$')
+        && data.isCutout is bool
+        && data.productImageSrc is string
+        && data.productImageSrc.size() > 0
+        && data.productImageSrc.size() <= 350000
+        && data.thumbFlashSale is string
+        && data.thumbFlashSale.size() > 0
+        && data.thumbFlashSale.size() <= 160000
+        && data.thumbMinimalStudio is string
+        && data.thumbMinimalStudio.size() > 0
+        && data.thumbMinimalStudio.size() <= 160000
+        && data.thumbStoryWhatsapp is string
+        && data.thumbStoryWhatsapp.size() > 0
+        && data.thumbStoryWhatsapp.size() <= 160000
+        && data.createdAt == request.time;
+    }
+
+    match /users/{userId} {
+      // Lecture isolée au propriétaire uniquement ; listage interdit pour protéger les PII
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      // Création initiale du profil avec exactement 5 crédits gratuits
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfileCreate(incoming());
+
+      // Mise à jour par actions typées avec champs immuables protégés
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfileUpdate(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().email == existing().email
+        && (
+          isDecrementCreditAction()
+          || isTopUpCreditsAction()
+          || isProfileInfoUpdateAction()
+        );
+
+      // Suppression interdite côté client pour empêcher la réinitialisation des 5 crédits gratuits
+      allow delete: if false;
+
+      // Journal immuable des utilisations enregistrées pour le compte utilisateur
+      match /usages/{usageId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(usageId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && isValidId(userId)
+          && isValidId(usageId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidUsageLogCreate(incoming(), userId);
+
+        allow update, delete: if false;
+      }
+
+      // Galerie des anciennes créations (affiches générées) sauvegardées par l'utilisateur
+      match /creations/{creationId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(creationId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && isValidId(userId)
+          && isValidId(creationId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidUserCreationCreate(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(creationId);
+      }
+    }
+  }
+}

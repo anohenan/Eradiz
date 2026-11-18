@@ -1,0 +1,6 @@
+{
+  "name": "Eradiz",
+  "description": "Effacez le fond, boostez vos ventes — Studio produit IA pour e-commerçants et vendeurs sociaux : détourage automatique, fiche SEO et visuels publicitaires PNG.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

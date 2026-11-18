@@ -1,0 +1,194 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profil utilisateur Eradiz avec solde de crédits et formule active.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 320,
+          "description": "Adresse e-mail de l'utilisateur authentifié."
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nom complet affiché dans l'interface."
+        },
+        "credits": {
+          "type": "integer",
+          "description": "Solde actuel de crédits de génération Eradiz."
+        },
+        "activePlan": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Nom du pack ou de l'abonnement actif."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Horodatage serveur de création du compte."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Horodatage serveur de dernière mise à jour."
+        }
+      },
+      "required": ["email", "displayName", "credits", "createdAt"]
+    },
+    "UsageLog": {
+      "title": "UsageLog",
+      "description": "Enregistrement d'utilisation Eradiz (génération IA, export vidéo, export image, session calculateur).",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID du propriétaire de l'utilisation."
+        },
+        "actionType": {
+          "type": "string",
+          "enum": ["ai_studio_kit", "video_export", "image_export", "calculator_session"],
+          "maxLength": 32,
+          "description": "Type d'action effectuée dans l'application."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Libellé principal du produit ou de la création."
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Détails techniques (qualité, FPS, format, catégorie)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Horodatage serveur de l'action."
+        }
+      },
+      "required": ["userId", "actionType", "title", "details", "createdAt"]
+    },
+    "UserCreation": {
+      "title": "UserCreation",
+      "description": "Création sauvegardée (produit détouré, textes SEO et aperçus des 3 affiches générées).",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID du propriétaire de la création."
+        },
+        "shortPosterTitle": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Titre court affiché sur les affiches."
+        },
+        "detectedCategory": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Catégorie produit détectée par l'IA."
+        },
+        "seoTitle": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Titre SEO généré."
+        },
+        "socialShortDesc": {
+          "type": "string",
+          "maxLength": 600,
+          "description": "Description courte réseaux sociaux."
+        },
+        "price": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Prix affiché sur l'affiche."
+        },
+        "promoBadge": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Badge promotionnel affiché sur l'affiche."
+        },
+        "tone": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Ton éditorial sélectionné."
+        },
+        "themeColor": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "Couleur hexadécimale du thème."
+        },
+        "isCutout": {
+          "type": "boolean",
+          "description": "Indique si le produit a été détouré."
+        },
+        "productImageSrc": {
+          "type": "string",
+          "maxLength": 350000,
+          "description": "Image produit optimisée (data URL WebP/PNG) permettant le re-rendu HD/2K."
+        },
+        "thumbFlashSale": {
+          "type": "string",
+          "maxLength": 160000,
+          "description": "Aperçu compressé de l'affiche Flash Sale 1:1."
+        },
+        "thumbMinimalStudio": {
+          "type": "string",
+          "maxLength": 160000,
+          "description": "Aperçu compressé de l'affiche Minimaliste Studio 1:1."
+        },
+        "thumbStoryWhatsapp": {
+          "type": "string",
+          "maxLength": 160000,
+          "description": "Aperçu compressé de l'affiche Statut WhatsApp 9:16."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Horodatage serveur de création."
+        }
+      },
+      "required": [
+        "userId",
+        "shortPosterTitle",
+        "detectedCategory",
+        "seoTitle",
+        "socialShortDesc",
+        "price",
+        "promoBadge",
+        "tone",
+        "themeColor",
+        "isCutout",
+        "productImageSrc",
+        "thumbFlashSale",
+        "thumbMinimalStudio",
+        "thumbStoryWhatsapp",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Document privé de l'utilisateur contenant son profil et son solde de crédits."
+    },
+    "/users/{userId}/usages/{usageId}": {
+      "schema": {
+        "$ref": "#/entities/UsageLog"
+      },
+      "description": "Journal immuable des utilisations enregistrées pour l'utilisateur authentifié."
+    },
+    "/users/{userId}/creations/{creationId}": {
+      "schema": {
+        "$ref": "#/entities/UserCreation"
+      },
+      "description": "Galerie des anciennes créations (affiches générées) sauvegardées par l'utilisateur."
+    }
+  }
+}
